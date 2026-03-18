@@ -9,6 +9,7 @@ from tron_event_mcp.db.repos.base import run_pipeline
 from tron_event_mcp.tools.analytics import (
     CollectionName,
     _build_contract_filter,
+    _safe_numeric,
     _validate_field_path,
 )
 
@@ -83,7 +84,7 @@ def register_distribution_tools(mcp: FastMCP) -> None:
             filters, contract_address, event_name, collection,
             start_timestamp, end_timestamp,
         )
-        field_ref = {"$toLong": f"${field}"}
+        field_ref = _safe_numeric(f"${field}")
 
         if bucket_mode == "manual":
             if not boundaries or len(boundaries) < 2:
@@ -197,7 +198,7 @@ def register_distribution_tools(mcp: FastMCP) -> None:
             filters, contract_address, event_name, collection,
             start_timestamp, end_timestamp,
         )
-        field_ref = {"$toLong": f"${field}"}
+        field_ref = _safe_numeric(f"${field}")
 
         safe_pcts = [p for p in pcts if 0 < p < 1]
         if not safe_pcts:

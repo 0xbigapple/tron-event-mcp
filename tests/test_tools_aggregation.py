@@ -352,3 +352,144 @@ class TestAggregateByTimeWithSumField:
                     collection="contractevent",
                     sum_field="$injected",
                 )
+
+
+# ---------------------------------------------------------------------------
+# top_events_by_value
+# ---------------------------------------------------------------------------
+
+class TestTopEventsByValue:
+    async def test_pipeline_uses_addfields_and_tolng(self, tools):
+        db, col = make_mock_db(aggregate_data=[])
+        with patch("tron_event_mcp.tools.analytics.get_db", return_value=db):
+            await tools["top_events_by_value"](
+                collection="contractevent",
+                sort_field="dataMap.value",
+            )
+        pipeline = col.aggregate.call_args[0][0]
+        add_fields = next(s["$addFields"] for s in pipeline if "$addFields" in s)
+        assert add_fields["_sort_val"] == {"$toLong": "$dataMap.value"}
+
+    async def test_sort_descending_by_default(self, tools):
+        db, col = make_mock_db(aggregate_data=[])
+        with patch("tron_event_mcp.tools.analytics.get_db", return_value=db):
+            await tools["top_events_by_value"](
+                collection="contractevent",
+                sort_field="dataMap.value",
+            )
+        pipeline = col.aggregate.call_args[0][0]
+        sort = next(s["$sort"] for s in pipeline if "$sort" in s)
+        assert sort["_sort_val"] == -1
+
+    async def test_sort_ascending(self, tools):
+        db, col = make_mock_db(aggregate_data=[])
+        with patch("tron_event_mcp.tools.analytics.get_db", return_value=db):
+            await tools["top_events_by_value"](
+                collection="contractevent",
+                sort_field="dataMap.value",
+                sort_order="asc",
+            )
+        pipeline = col.aggregate.call_args[0][0]
+        sort = next(s["$sort"] for s in pipeline if "$sort" in s)
+        assert sort["_sort_val"] == 1
+
+    async def test_top_n_capped_at_100(self, tools):
+        db, col = make_mock_db(aggregate_data=[])
+        with patch("tron_event_mcp.tools.analytics.get_db", return_value=db):
+            await tools["top_events_by_value"](
+                collection="contractevent",
+                sort_field="dataMap.value",
+                top_n=9999,
+            )
+        pipeline = col.aggregate.call_args[0][0]
+        limit = next(s["$limit"] for s in pipeline if "$limit" in s)
+        assert limit == 100
+
+    async def test_contract_filter_applied(self, tools):
+        db, col = make_mock_db(aggregate_data=[])
+        addr = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+        with patch("tron_event_mcp.tools.analytics.get_db", return_value=db):
+            await tools["top_events_by_value"](
+                collection="contractevent",
+                sort_field="dataMap.value",
+                contract_address=addr,
+                event_name="Transfer",
+            )
+        pipeline = col.aggregate.call_args[0][0]
+        match = next(s["$match"] for s in pipeline if "$match" in s)
+        assert match["contractAddress"] == addr
+        assert match["eventName"] == "Transfer"
+
+    async def test_fields_projection(self, tools):
+        db, col = make_mock_db(aggregate_data=[])
+        with patch("tron_event_mcp.tools.analytics.get_db", return_value=db):
+            await tools["top_events_by_value"](
+                collection="contractevent",
+                sort_field="dataMap.value",
+                fields=["transactionId", "blockNumber"],
+            )
+        pipeline = col.aggregate.call_args[0][0]
+        project = next(s["$project"] for s in pipeline if "$project" in s)
+        assert project["transactionId"] == 1
+        assert project["blockNumber"] == 1
+        assert project["_id"] == 0
+        assert project["_sort_val"] == 0
+
+    async def test_no_fields_still_excludes_sort_val(self, tools):
+        db, col = make_mock_db(aggregate_data=[])
+        with patch("tron_event_mcp.tools.analytics.get_db", return_value=db):
+            await tools["top_events_by_value"](
+                collection="contractevent",
+                sort_field="dataMap.value",
+            )
+        pipeline = col.aggregate.call_args[0][0]
+        project = next(s["$project"] for s in pipeline if "$project" in s)
+        assert project["_sort_val"] == 0
+        assert project["_id"] == 0
+
+    async def test_invalid_sort_field_raises(self, tools):
+        db, _ = make_mock_db(aggregate_data=[])
+        with patch("tron_event_mcp.tools.analytics.get_db", return_value=db):
+            with pytest.raises(ValueError, match="invalid field name"):
+                await tools["top_events_by_value"](
+                    collection="contractevent",
+                    sort_field="$injected",
+                )
+
+    async def test_invalid_fields_item_raises(self, tools):
+        db, _ = make_mock_db(aggregate_data=[])
+        with patch("tron_event_mcp.tools.analytics.get_db", return_value=db):
+            with pytest.raises(ValueError, match="invalid field name"):
+                await tools["top_events_by_value"](
+                    collection="contractevent",
+                    sort_field="dataMap.value",
+                    fields=["$bad"],
+                )
+
+    async def test_returns_data(self, tools):
+        data = [
+            {"transactionId": "abc", "dataMap": {"value": "9999999999"}},
+            {"transactionId": "def", "dataMap": {"value": "5000000000"}},
+        ]
+        db, _ = make_mock_db(aggregate_data=data)
+        with patch("tron_event_mcp.tools.analytics.get_db", return_value=db):
+            result = await tools["top_events_by_value"](
+                collection="contractevent",
+                sort_field="dataMap.value",
+                top_n=2,
+            )
+        assert result == data
+
+    async def test_time_range_in_match(self, tools):
+        db, col = make_mock_db(aggregate_data=[])
+        with patch("tron_event_mcp.tools.analytics.get_db", return_value=db):
+            await tools["top_events_by_value"](
+                collection="contractevent",
+                sort_field="dataMap.value",
+                start_timestamp=1_000_000_000_000,
+                end_timestamp=2_000_000_000_000,
+            )
+        pipeline = col.aggregate.call_args[0][0]
+        match = next(s["$match"] for s in pipeline if "$match" in s)
+        assert match["timeStamp"]["$gte"] == 1_000_000_000_000
+        assert match["timeStamp"]["$lte"] == 2_000_000_000_000

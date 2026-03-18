@@ -26,6 +26,11 @@ def _validate_field_path(field: str) -> None:
         raise ValueError(f"invalid field name: {field!r}")
 
 
+def _safe_numeric(field_ref: str) -> dict:
+    """Safely convert a string field to decimal; returns None on conversion failure (ignored by aggregation)."""
+    return {"$convert": {"input": field_ref, "to": "decimal", "onError": None, "onNull": None}}
+
+
 def _build_contract_filter(
     filters: dict,
     contract_address: str | None,
@@ -227,7 +232,7 @@ def register_analytics_tools(mcp: FastMCP) -> None:
         }
         if sum_field:
             _validate_field_path(sum_field)
-            group_spec["sum"] = {"$sum": {"$toLong": f"${sum_field}"}}
+            group_spec["sum"] = {"$sum": _safe_numeric(f"${sum_field}")}
 
         project_spec: dict = {"_id": 0, "period": "$_id", "count": 1}
         if sum_field:
@@ -332,7 +337,7 @@ def register_analytics_tools(mcp: FastMCP) -> None:
         group_spec: dict = {"_id": None, "count": {"$sum": 1}}
         for op in operations:
             if op != "count":
-                group_spec[op] = {f"${op}": {"$toLong": field_ref}}
+                group_spec[op] = {f"${op}": _safe_numeric(field_ref)}
 
         all_keys = list(group_spec.keys())
         pipeline = [
@@ -412,7 +417,7 @@ def register_analytics_tools(mcp: FastMCP) -> None:
             _validate_field_path(agg_field)
             group_spec = {
                 "_id": group_field_ref,
-                "value": {f"${agg_op}": {"$toLong": f"${agg_field}"}},
+                "value": {f"${agg_op}": _safe_numeric(f"${agg_field}")},
                 "count": {"$sum": 1},
             }
             project_spec = {"_id": 0, "group": "$_id", "value": 1, "count": 1}
@@ -425,6 +430,84 @@ def register_analytics_tools(mcp: FastMCP) -> None:
             {"$sort": {sort_key: sort_dir}},
             {"$limit": min(top_n, 100)},
         ]
+        return await run_pipeline(db, collection, pipeline)
+
+    @mcp.tool()
+    async def top_events_by_value(
+        collection: CollectionName,
+        sort_field: str,
+        filters: dict = {},
+        contract_address: str | None = None,
+        event_name: str | None = None,
+        start_timestamp: int | None = None,
+        end_timestamp: int | None = None,
+        sort_order: Literal["asc", "desc"] = "desc",
+        top_n: int = 10,
+        fields: list[str] | None = None,
+    ) -> list[dict]:
+        """
+        Find top N events sorted by the numeric value of a field.
+        Unlike query_events which sorts by string order, this tool converts
+        the field to a number (via $convert to decimal) before sorting — essential for
+        fields like dataMap.value that are stored as numeric strings.
+
+        Use this when you need to find the largest/smallest individual events
+        (e.g. "top 3 biggest USDT transfers"). For aggregate statistics
+        (total, average), use aggregate_field or group_by_field instead.
+
+        Args:
+          collection: Collection name.
+          sort_field: Field path to sort by numerically, e.g. "dataMap.value",
+                      "energyUsageTotal". The field value must be convertible to a long.
+          filters: Additional filter conditions (same as query_events).
+          contract_address: Optional. Restrict to a specific contract address.
+          event_name: Optional. Restrict to a specific event name
+                      (only effective for contractevent / solidityevent).
+          start_timestamp: Start timestamp in milliseconds.
+          end_timestamp: End timestamp in milliseconds.
+          sort_order: "desc" (default, largest first) or "asc" (smallest first).
+          top_n: Number of results to return. Default 10, max 100.
+          fields: Optional list of fields to return. If omitted, returns all fields.
+
+        Returns:
+          List of event documents sorted by the numeric value of sort_field.
+
+        Example: top 3 largest USDT transfers
+          top_events_by_value(
+              collection="contractevent",
+              sort_field="dataMap.value",
+              contract_address="TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+              event_name="Transfer",
+              top_n=3,
+              fields=["transactionId", "blockNumber", "timeStamp", "topicMap", "dataMap"],
+          )
+        """
+        db = get_db()
+        _validate_field_path(sort_field)
+        match_filter = _build_contract_filter(
+            filters, contract_address, event_name, collection,
+            start_timestamp, end_timestamp,
+        )
+        sort_dir = 1 if sort_order == "asc" else -1
+        capped_n = min(top_n, 100)
+
+        pipeline: list[dict] = [
+            {"$match": match_filter},
+            {"$addFields": {"_sort_val": _safe_numeric(f"${sort_field}")}},
+            {"$sort": {"_sort_val": sort_dir}},
+            {"$limit": capped_n},
+        ]
+
+        if fields:
+            for f in fields:
+                _validate_field_path(f)
+            project: dict = {"_id": 0, "_sort_val": 0}
+            for f in fields:
+                project[f] = 1
+            pipeline.append({"$project": project})
+        else:
+            pipeline.append({"$project": {"_id": 0, "_sort_val": 0}})
+
         return await run_pipeline(db, collection, pipeline)
 
     @mcp.tool()
