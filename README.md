@@ -55,6 +55,39 @@ event-plugin listens to a Java-tron node and writes the following 7 event types 
 | `histogram` | Numeric field bucketing with auto or manual boundaries |
 | `percentiles` | Compute percentiles (P50 / P90 / P95 / P99, etc.) |
 
+## Recommended Indexes
+
+event-plugin itself only creates unique indexes (for data deduplication/upsert). To get optimal query performance with this MCP Server's analytics tools, add the following indexes to MongoDB:
+
+```javascript
+// contractevent (highest query volume)
+db.contractevent.createIndex({ contractAddress: 1, eventName: 1, timeStamp: -1 });
+db.contractevent.createIndex({ contractAddress: 1, timeStamp: -1 });
+db.contractevent.createIndex({ timeStamp: -1 });
+
+// solidityevent
+db.solidityevent.createIndex({ contractAddress: 1, eventName: 1, timeStamp: -1 });
+db.solidityevent.createIndex({ contractAddress: 1, timeStamp: -1 });
+db.solidityevent.createIndex({ timeStamp: -1 });
+
+// transaction
+db.transaction.createIndex({ timeStamp: -1 });
+db.transaction.createIndex({ result: 1 });
+
+// block
+db.block.createIndex({ timeStamp: -1 });
+
+// contractlog / soliditylog
+db.contractlog.createIndex({ contractAddress: 1, timeStamp: -1 });
+db.soliditylog.createIndex({ contractAddress: 1, timeStamp: -1 });
+```
+
+The `create_index.js` file in the project root contains the complete index creation script (unique + analytics indexes). Run it directly:
+
+```bash
+mongosh mongodb://host:27017/tron create_index.js
+```
+
 ## Quick Start
 
 ### Prerequisites
