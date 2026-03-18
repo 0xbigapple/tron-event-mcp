@@ -5,8 +5,10 @@ whitelisting, operator sanitization, and projection rules are enforced
 consistently.
 """
 
+from decimal import Decimal
 from typing import Any
 
+from bson import Decimal128
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 from tron_event_mcp.config import get_settings
@@ -90,6 +92,24 @@ async def find_one(
     return await db[collection].find_one(filter, projection)
 
 
+def _convert_decimal128(obj: Any) -> Any:
+    """Recursively convert Decimal128/Decimal to JSON-serializable types, preserving full precision.
+
+    Integer values become int (Python int has arbitrary precision);
+    non-integer values become str to avoid float precision loss.
+    """
+    if isinstance(obj, (Decimal128, Decimal)):
+        d = obj.to_decimal() if isinstance(obj, Decimal128) else obj
+        if d == d.to_integral_value():
+            return int(d)
+        return str(d)
+    if isinstance(obj, dict):
+        return {k: _convert_decimal128(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_convert_decimal128(v) for v in obj]
+    return obj
+
+
 async def run_pipeline(
     db: AsyncIOMotorDatabase,
     collection: str,
@@ -97,5 +117,11 @@ async def run_pipeline(
 ) -> list[dict]:
     """Execute a MongoDB aggregation pipeline with collection validation."""
     validate_collection(collection)
-    cursor = db[collection].aggregate(pipeline)
-    return await cursor.to_list(None)
+    settings = get_settings()
+    cursor = db[collection].aggregate(
+        pipeline,
+        allowDiskUse=True,
+        maxTimeMS=settings.query_timeout_ms,
+    )
+    results = await cursor.to_list(None)
+    return _convert_decimal128(results)
