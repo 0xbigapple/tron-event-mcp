@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from tests.conftest import (
-    CaptureMCP, make_mock_db, make_cursor,
+    CaptureMCP, make_cursor,
     SAMPLE_TRANSACTION, SAMPLE_CONTRACT_EVENT,
 )
 from tron_event_mcp.tools.cross_collection import register_cross_collection_tools

@@ -9,7 +9,7 @@ import pytest
 
 from tests.conftest import (
     CaptureMCP, make_mock_db,
-    SAMPLE_BLOCK, SAMPLE_TRANSACTION, SAMPLE_CONTRACT_EVENT,
+    SAMPLE_BLOCK, SAMPLE_TRANSACTION,
 )
 from tron_event_mcp.tools.query import register_query_tools
 

@@ -3,14 +3,14 @@ Tests for tools/analytics.py: search_contract_activity, get_top_contracts,
 aggregate_by_time, get_transaction_stats.
 """
 
-from unittest.mock import patch, call
+from unittest.mock import AsyncMock, MagicMock, patch
 from pymongo import DESCENDING
 
 import pytest
 
 from tests.conftest import (
     CaptureMCP, make_mock_db,
-    SAMPLE_CONTRACT_EVENT, SAMPLE_TRANSACTION,
+    SAMPLE_CONTRACT_EVENT,
 )
 from tron_event_mcp.tools.analytics import register_analytics_tools
 
@@ -245,7 +245,6 @@ class TestGetTransactionStats:
         assert "contract_type_distribution" in result
 
     async def test_avg_energy_extracted_from_pipeline(self, tools):
-        from unittest.mock import AsyncMock, MagicMock
         col = MagicMock()
 
         call_count = 0

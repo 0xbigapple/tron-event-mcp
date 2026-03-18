@@ -99,7 +99,9 @@ class TestGetCollectionStats:
             call_count += 1
             col = MagicMock()
             if name == "block":
-                col.estimated_document_count = AsyncMock(side_effect=Exception("connection timeout"))
+                col.estimated_document_count = AsyncMock(
+                    side_effect=Exception("connection timeout")
+                )
             else:
                 col.estimated_document_count = AsyncMock(return_value=0)
                 col.find_one = AsyncMock(return_value=None)
