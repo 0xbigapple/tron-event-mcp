@@ -291,7 +291,7 @@ def register_analytics_tools(mcp: FastMCP) -> None:
     async def aggregate_field(
         collection: CollectionName,
         field: str,
-        operations: list[AggOp] = ["sum", "count"],
+        operations: list[AggOp] = ["sum"],
         filters: dict = {},
         contract_address: str | None = None,
         event_name: str | None = None,
@@ -308,8 +308,8 @@ def register_analytics_tools(mcp: FastMCP) -> None:
           field: Field path to aggregate. Supports nested paths, e.g. "dataMap.value",
                  "energyUsageTotal".
           operations: List of aggregation operations. Options: sum / avg / min / max.
-                      Default: ["sum", "count"]. "count" is always available regardless
-                      of field value.
+                      Default: ["sum"]. Note: count is always returned automatically,
+                      no need to include it.
           filters: Additional filter conditions.
           contract_address: Optional. Restrict to a specific contract address.
           event_name: Optional. Restrict to a specific event name.
@@ -322,7 +322,7 @@ def register_analytics_tools(mcp: FastMCP) -> None:
           aggregate_field(
               collection="contractevent",
               field="dataMap.value",
-              operations=["sum", "avg", "count"],
+              operations=["sum", "avg"],
               contract_address="TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
               event_name="Transfer",
           )
