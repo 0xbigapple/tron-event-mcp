@@ -28,7 +28,10 @@ def _validate_field_path(field: str) -> None:
 
 
 def _safe_numeric(field_ref: str) -> dict:
-    """Safely convert a string field to decimal; returns None on conversion failure (ignored by aggregation)."""
+    """Safely convert a string field to decimal.
+
+    Returns None on conversion failure (ignored by aggregation).
+    """
     return {"$convert": {"input": field_ref, "to": "decimal", "onError": None, "onNull": None}}
 
 

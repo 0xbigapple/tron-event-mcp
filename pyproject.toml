@@ -27,15 +27,27 @@ where = ["src"]
 
 [tool.pylint."messages control"]
 disable = [
+    # CI runs pylint without installing project dependencies
+    "import-error",
+    # MCP tool functions require many parameters for their JSON schema
     "too-many-arguments",
     "too-many-positional-arguments",
     "too-many-locals",
     "too-many-statements",
     "duplicate-code",
+    # Pydantic Settings class has no public methods by design
+    "too-few-public-methods",
+    # Module/function docstrings not enforced
     "missing-module-docstring",
     "missing-function-docstring",
     "missing-class-docstring",
     "invalid-name",
+    # pytest fixtures redefine outer names by design
+    "redefined-outer-name",
+    # Test-specific patterns
+    "unused-variable",
+    "protected-access",
+    "use-implicit-booleaness-not-comparison",
 ]
 
 [tool.pytest.ini_options]

@@ -54,7 +54,9 @@ SCHEMA_DEFINITIONS: dict = {
         },
     },
     "contractevent": {
-        "description": "Contract event, triggered when a smart contract emits an event (ABI-decoded)",
+        "description": (
+            "Contract event, triggered when a smart contract emits an event (ABI-decoded)"
+        ),
         "trigger_name": "contractEventTrigger",
         "unique_index": "uniqueId",
         "fields": {
@@ -76,7 +78,9 @@ SCHEMA_DEFINITIONS: dict = {
         },
     },
     "contractlog": {
-        "description": "Contract raw log, triggered by smart contract LOG operations (not ABI-decoded)",
+        "description": (
+            "Contract raw log, triggered by smart contract LOG operations (not ABI-decoded)"
+        ),
         "trigger_name": "contractLogTrigger",
         "unique_index": "uniqueId",
         "fields": {
@@ -108,13 +112,17 @@ SCHEMA_DEFINITIONS: dict = {
         "description": "Solidified contract event, same structure as contractevent",
         "trigger_name": "solidityEventTrigger",
         "unique_index": "uniqueId",
-        "fields": "Same as contractevent; the difference is that data has been solidified and will not be rolled back",
+        "fields": (
+            "Same as contractevent; data has been solidified and will not be rolled back"
+        ),
     },
     "soliditylog": {
         "description": "Solidified contract raw log, same structure as contractlog",
         "trigger_name": "solidityLogTrigger",
         "unique_index": "uniqueId",
-        "fields": "Same as contractlog; the difference is that data has been solidified and will not be rolled back",
+        "fields": (
+            "Same as contractlog; data has been solidified and will not be rolled back"
+        ),
     },
 }
 
