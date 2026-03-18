@@ -13,7 +13,7 @@ _client: AsyncIOMotorClient | None = None
 
 def get_client() -> AsyncIOMotorClient:
     """Return the Motor client singleton, lazily initialized on first call."""
-    global _client
+    global _client  # pylint: disable=global-statement
     if _client is None:
         settings = get_settings()
         _client = AsyncIOMotorClient(
@@ -32,7 +32,7 @@ def get_db() -> AsyncIOMotorDatabase:
 
 async def close_client() -> None:
     """Close the Motor client and release connection resources."""
-    global _client
+    global _client  # pylint: disable=global-statement
     if _client is not None:
         _client.close()
         _client = None

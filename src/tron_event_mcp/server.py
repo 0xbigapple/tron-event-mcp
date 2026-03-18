@@ -3,7 +3,6 @@
 from mcp.server.fastmcp import FastMCP
 
 from tron_event_mcp.config import get_settings
-from tron_event_mcp.db.client import close_client
 from tron_event_mcp.resources.docs import register_resources
 from tron_event_mcp.tools.analytics import register_analytics_tools
 from tron_event_mcp.tools.cross_collection import register_cross_collection_tools

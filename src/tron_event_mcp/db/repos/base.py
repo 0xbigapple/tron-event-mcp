@@ -59,7 +59,7 @@ def build_projection(fields: list[str] | None) -> dict:
 async def find_many(
     db: AsyncIOMotorDatabase,
     collection: str,
-    filter: dict,
+    query_filter: dict,
     sort: list[tuple[str, int]],
     limit: int,
     skip: int = 0,
@@ -67,11 +67,11 @@ async def find_many(
 ) -> list[dict]:
     """Query multiple documents with validation, projection, sort, skip, and limit."""
     validate_collection(collection)
-    sanitize_filter(filter)
+    sanitize_filter(query_filter)
     projection = build_projection(fields)
     cursor = (
         db[collection]
-        .find(filter, projection)
+        .find(query_filter, projection)
         .sort(sort)
         .skip(skip)
         .limit(safe_limit(limit))
@@ -82,14 +82,14 @@ async def find_many(
 async def find_one(
     db: AsyncIOMotorDatabase,
     collection: str,
-    filter: dict,
+    query_filter: dict,
     fields: list[str] | None = None,
 ) -> dict | None:
     """Query a single document with collection and filter validation."""
     validate_collection(collection)
-    sanitize_filter(filter)
+    sanitize_filter(query_filter)
     projection = build_projection(fields)
-    return await db[collection].find_one(filter, projection)
+    return await db[collection].find_one(query_filter, projection)
 
 
 def _convert_decimal128(obj: Any) -> Any:

@@ -75,7 +75,7 @@ def register_query_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def query_events(
         collection: CollectionName,
-        filters: dict = {},
+        filters: dict | None = None,
         sort_by: str = "timeStamp",
         sort_order: Literal["asc", "desc"] = "desc",
         limit: int = 20,
@@ -117,7 +117,7 @@ def register_query_tools(mcp: FastMCP) -> None:
         direction = ASCENDING if sort_order == "asc" else DESCENDING
         return await find_many(
             db, collection,
-            filter=sanitize_filter(filters),
+            query_filter=sanitize_filter(filters or {}),
             sort=[(sort_by, direction)],
             limit=safe_limit(limit),
             skip=skip,

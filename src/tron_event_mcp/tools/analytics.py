@@ -2,6 +2,7 @@
 counting, field aggregation, group-by ranking, and transaction statistics.
 """
 
+import asyncio
 from typing import Literal
 
 from mcp.server.fastmcp import FastMCP
@@ -32,7 +33,7 @@ def _safe_numeric(field_ref: str) -> dict:
 
 
 def _build_contract_filter(
-    filters: dict,
+    filters: dict | None,
     contract_address: str | None,
     event_name: str | None,
     collection: str,
@@ -40,7 +41,7 @@ def _build_contract_filter(
     end_timestamp: int | None,
 ) -> dict:
     """Combine contract address, event name, time range, and user-supplied filters."""
-    extra: dict = {**sanitize_filter(filters)}
+    extra: dict = {**sanitize_filter(filters or {})}
     if contract_address:
         extra["contractAddress"] = contract_address
     if event_name and collection in ("contractevent", "solidityevent"):
@@ -249,7 +250,7 @@ def register_analytics_tools(mcp: FastMCP) -> None:
     @mcp.tool()
     async def count_events(
         collection: CollectionName,
-        filters: dict = {},
+        filters: dict | None = None,
         contract_address: str | None = None,
         event_name: str | None = None,
         start_timestamp: int | None = None,
@@ -291,8 +292,8 @@ def register_analytics_tools(mcp: FastMCP) -> None:
     async def aggregate_field(
         collection: CollectionName,
         field: str,
-        operations: list[AggOp] = ["sum"],
-        filters: dict = {},
+        operations: list[AggOp] | None = None,
+        filters: dict | None = None,
         contract_address: str | None = None,
         event_name: str | None = None,
         start_timestamp: int | None = None,
@@ -335,7 +336,7 @@ def register_analytics_tools(mcp: FastMCP) -> None:
         )
         field_ref = f"${field}"
         group_spec: dict = {"_id": None, "count": {"$sum": 1}}
-        for op in operations:
+        for op in (operations or ["sum"]):
             if op != "count":
                 group_spec[op] = {f"${op}": _safe_numeric(field_ref)}
 
@@ -354,7 +355,7 @@ def register_analytics_tools(mcp: FastMCP) -> None:
         group_field: str,
         agg_field: str | None = None,
         agg_op: AggOp = "sum",
-        filters: dict = {},
+        filters: dict | None = None,
         contract_address: str | None = None,
         event_name: str | None = None,
         start_timestamp: int | None = None,
@@ -436,7 +437,7 @@ def register_analytics_tools(mcp: FastMCP) -> None:
     async def top_events_by_value(
         collection: CollectionName,
         sort_field: str,
-        filters: dict = {},
+        filters: dict | None = None,
         contract_address: str | None = None,
         event_name: str | None = None,
         start_timestamp: int | None = None,
@@ -528,7 +529,9 @@ def register_analytics_tools(mcp: FastMCP) -> None:
           {
             "result_distribution": [{"result": "SUCCESS", "count": 12000}, ...],
             "avg_energy_usage_total": 12345.6,
-            "contract_type_distribution": [{"contractType": "TriggerSmartContract", "count": ...}, ...]
+            "contract_type_distribution": [
+              {"contractType": "TriggerSmartContract", "count": ...}, ...
+            ]
           }
         """
         db = get_db()
@@ -553,7 +556,6 @@ def register_analytics_tools(mcp: FastMCP) -> None:
             {"$project": {"_id": 0, "avg_energy": 1}},
         ]
 
-        import asyncio
         result_dist, contract_dist, avg_energy_result = await asyncio.gather(
             run_pipeline(db, "transaction", result_pipeline),
             run_pipeline(db, "transaction", contract_type_pipeline),
@@ -562,6 +564,8 @@ def register_analytics_tools(mcp: FastMCP) -> None:
 
         return {
             "result_distribution": result_dist,
-            "avg_energy_usage_total": avg_energy_result[0]["avg_energy"] if avg_energy_result else None,
+            "avg_energy_usage_total": (
+                avg_energy_result[0]["avg_energy"] if avg_energy_result else None
+            ),
             "contract_type_distribution": contract_dist,
         }

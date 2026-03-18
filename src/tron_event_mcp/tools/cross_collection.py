@@ -6,7 +6,7 @@ from mcp.server.fastmcp import FastMCP
 from pymongo import DESCENDING
 
 from tron_event_mcp.db.client import get_db
-from tron_event_mcp.db.repos.base import find_one, find_many, run_pipeline, safe_limit
+from tron_event_mcp.db.repos.base import find_one, find_many, run_pipeline
 from tron_event_mcp.tools.analytics import _build_time_filter
 
 

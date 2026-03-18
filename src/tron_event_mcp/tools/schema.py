@@ -1,9 +1,11 @@
 """Schema tools: collection field definitions and statistics."""
 
+import asyncio
+
 from mcp.server.fastmcp import FastMCP
+from pymongo.errors import PyMongoError
 
 from tron_event_mcp.db.client import get_db
-from tron_event_mcp.db.repos.base import run_pipeline
 from tron_event_mcp.config import get_settings
 
 # Field descriptions for each collection (derived from Java Trigger class definitions).
@@ -141,8 +143,6 @@ def register_schema_tools(mcp: FastMCP) -> None:
 
         Returns: { collection_name: { count, earliest_ts, latest_ts } }
         """
-        import asyncio
-
         db = get_db()
         settings = get_settings()
 
@@ -163,7 +163,7 @@ def register_schema_tools(mcp: FastMCP) -> None:
                     "earliest_ts": earliest.get("timeStamp") if earliest else None,
                     "latest_ts": latest.get("timeStamp") if latest else None,
                 }
-            except Exception as e:
+            except PyMongoError as e:
                 return col, {"error": str(e)}
 
         pairs = await asyncio.gather(

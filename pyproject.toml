@@ -25,6 +25,19 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.pylint."messages control"]
+disable = [
+    "too-many-arguments",
+    "too-many-positional-arguments",
+    "too-many-locals",
+    "too-many-statements",
+    "duplicate-code",
+    "missing-module-docstring",
+    "missing-function-docstring",
+    "missing-class-docstring",
+    "invalid-name",
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

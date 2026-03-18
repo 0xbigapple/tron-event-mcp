@@ -26,7 +26,7 @@ def register_distribution_tools(mcp: FastMCP) -> None:
         bucket_mode: BucketMode = "auto",
         boundaries: list[int] | None = None,
         num_buckets: int = 10,
-        filters: dict = {},
+        filters: dict | None = None,
         contract_address: str | None = None,
         event_name: str | None = None,
         start_timestamp: int | None = None,
@@ -122,40 +122,40 @@ def register_distribution_tools(mcp: FastMCP) -> None:
                     })
             return result
 
-        else:  # auto
-            safe_num = min(max(2, num_buckets), 50)
-            pipeline = [
-                {"$match": match_filter},
-                {"$addFields": {"_val": field_ref}},
-                {
-                    "$bucketAuto": {
-                        "groupBy": "$_val",
-                        "buckets": safe_num,
-                        "output": {"count": {"$sum": 1}},
-                    }
-                },
-                {"$project": {
-                    "_id": 0,
-                    "min": "$_id.min",
-                    "max": "$_id.max",
-                    "count": 1,
-                }},
-            ]
-            raw = await run_pipeline(db, collection, pipeline)
-            return [
-                {
-                    "range": f"{item['min']} ~ {item['max']}",
-                    "count": item["count"],
+        # auto mode
+        safe_num = min(max(2, num_buckets), 50)
+        pipeline = [
+            {"$match": match_filter},
+            {"$addFields": {"_val": field_ref}},
+            {
+                "$bucketAuto": {
+                    "groupBy": "$_val",
+                    "buckets": safe_num,
+                    "output": {"count": {"$sum": 1}},
                 }
-                for item in raw
-            ]
+            },
+            {"$project": {
+                "_id": 0,
+                "min": "$_id.min",
+                "max": "$_id.max",
+                "count": 1,
+            }},
+        ]
+        raw = await run_pipeline(db, collection, pipeline)
+        return [
+            {
+                "range": f"{item['min']} ~ {item['max']}",
+                "count": item["count"],
+            }
+            for item in raw
+        ]
 
     @mcp.tool()
     async def percentiles(
         collection: CollectionName,
         field: str,
-        pcts: list[float] = [0.5, 0.9, 0.95, 0.99],
-        filters: dict = {},
+        pcts: list[float] | None = None,
+        filters: dict | None = None,
         contract_address: str | None = None,
         event_name: str | None = None,
         start_timestamp: int | None = None,
@@ -200,7 +200,7 @@ def register_distribution_tools(mcp: FastMCP) -> None:
         )
         field_ref = _safe_numeric(f"${field}")
 
-        safe_pcts = [p for p in pcts if 0 < p < 1]
+        safe_pcts = [p for p in (pcts or [0.5, 0.9, 0.95, 0.99]) if 0 < p < 1]
         if not safe_pcts:
             raise ValueError("pcts must contain at least one value between 0 and 1")
 
