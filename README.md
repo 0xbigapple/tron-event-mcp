@@ -60,7 +60,7 @@ event-plugin listens to a Java-tron node and writes the following 7 event types 
 ### Prerequisites
 
 - Python >= 3.11
-- MongoDB (with data already written by event-plugin)
+- MongoDB >= 7.0 (the `percentiles` tool uses the `$percentile` aggregation operator, which requires 7.0+; all other tools work with 5.0+)
 
 ### Installation
 
